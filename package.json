@@ -1,0 +1,18 @@
+{
+  "name": "node.js-mongodb-realtime-commenting-system",
+  "version": "0.0.1",
+  "dependencies": {
+    "ejs": "^2.5.7",
+    "express": "*",
+    "mongoose": "^4.13.7",
+    "socket.io": "*"
+  },
+  "description": "Real time commenting on post in Node Js and Store comments in MongoDB",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {}
+}

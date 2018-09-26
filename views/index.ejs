@@ -1,0 +1,86 @@
+
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+            <script src="http://code.jquery.com/jquery-1.11.2.min.js"></script>
+            <script type="text/javascript" src="/socket.io/socket.io.js"></script>
+    </head>
+   
+    <body>
+<table class="gbm" border="1">
+       
+    <% 
+    var srNo;
+    if (typeof posts != 'undefined' && posts.length > 0) { 
+            srNo = 0;
+            posts.forEach( function ( post ){
+                    srNo = srNo + 1;
+                    %>
+<tr>
+<td><%= srNo %></td>
+<td><%= post.title %></td>
+
+<td><a href="/posts/detail/<%= post._id %>" title="Post Detail">Detail</a></td>
+
+</tr>
+<% });
+}
+else {  %>
+<tr><td colspan="3"> No Data </td></tr>
+<% } %>
+</table>
+
+<div class="posts"></div>
+<textarea id="title" rows="3" cols="50">gbm</textarea></br>
+<!---textarea id="description" rows="3" cols="50">gbm</textarea---></br>
+<!---textarea id="by" rows="3" cols="50">gbm</textarea></br>
+<textarea id="url" rows="3" cols="50">gbm</textarea---></br>
+<input type="submit" value="Post" id="post">
+</body>
+
+<script type="text/javascript">
+        var psocket = io();
+            $('#post').click(function(){
+                var title = $('#title').val();
+               // var description = $('#description').val();
+               // var by = $('#by').val();
+               // var url = $('#url').val();
+                if(title != ''){
+                    var data2 = {'title': title,'description': 'description','by':'by','url':'url'};
+                $('.posts').append("<p>"+title+"</p>");
+                $('.posts').append("<p>"+"description"+"</p>");
+                $('.posts').append("<p>"+"by"+"</p>");
+                $('.posts').append("<p>"+"url"+"</p>");
+                $('#title').val('');
+                $('#description').val('');
+                $('#by').val('');
+                $('#url').val('');
+                }
+                console.log("title");  
+                 
+            //psocket.emit('title',data2);
+           // psocket.emit('description',data2);
+          //  psocket.emit('by',data2);
+           // psocket.emit('url',data2);
+        
+           psocket.emit('title',data2);
+            });
+        
+            psocket.on('title',function(data2){
+
+{
+$('.posts').append("<p>"+data2.title+"</p>");
+$('.posts').append("<p>"+"data2.title"+"</p>");
+$('.posts').append("<p>"+"data2.title"+"</p>");
+$('.posts').append("<p>"+"data2.title"+"</p>");
+
+}
+
+      
+
+
+});        
+        </script>
+        
+       
+</html>
