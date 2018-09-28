@@ -1,91 +1,95 @@
-var express = require("express");
-var app = new express();
-var http = require("http").Server(app);
-var io = require("socket.io")(http);
-var io2 = require("socket.io")(http);
-var Posts = require('./schema/posts');
-var Comments = require('./schema/comments');
+'use strict';
 
-var port = process.env.port || 3000;
+//dependencies
+var config = require('./config'),
+    express = require('express'),
+    cookieParser = require('cookie-parser'),
+    bodyParser = require('body-parser'),
+    session = require('express-session'),
+    mongoStore = require('connect-mongo')(session),
+    http = require('http'),
+    path = require('path'),
+    passport = require('passport'),
+    mongoose = require('mongoose'),
+    helmet = require('helmet'),
+    csrf = require('csurf');
 
+//create express app
+var app = express();
 
-app.use(express.static(__dirname + "/public" ));
-app.set('view engine', 'ejs');
+//keep reference to config
+app.config = config;
 
+//setup the web server
+app.server = http.createServer(app);
 
-app.get('/',function(req,res){
-    Posts.find({}, function(err, posts) {
-        if (err) {
-          console.log(err);
-        } else {
-          res.render('index', { posts: posts });
-        }
-    }); 
+//setup mongoose
+app.db = mongoose.createConnection(config.mongodb.uri);
+app.db.on('error', console.error.bind(console, 'mongoose connection error: '));
+app.db.once('open', function () {
+  //and... we have a data store
 });
 
-app.get('/',function(req,res){
-    Comments.find({}, function(err, comments) {
-        if (err) {
-          console.log(err);
-        } else {
-          res.render('index', { comments: comments });
-        }
-    }); 
+//config data models
+require('./models')(app, mongoose);
+
+//settings
+app.disable('x-powered-by');
+app.set('port', config.port);
+app.set('views', path.join(__dirname, 'views'));
+app.set('view engine', 'jade');
+
+//middleware
+app.use(require('morgan')('dev'));
+app.use(require('compression')());
+app.use(require('serve-static')(path.join(__dirname, 'public')));
+app.use(require('method-override')());
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
+app.use(cookieParser(config.cryptoKey));
+app.use(session({
+  resave: true,
+  saveUninitialized: true,
+  secret: config.cryptoKey,
+  store: new mongoStore({ url: config.mongodb.uri })
+}));
+app.use(passport.initialize());
+app.use(passport.session());
+app.use(csrf({ cookie: { signed: true } }));
+helmet(app);
+
+//response locals
+app.use(function(req, res, next) {
+  res.cookie('_csrfToken', req.csrfToken());
+  res.locals.user = {};
+  res.locals.user.defaultReturnUrl = req.user && req.user.defaultReturnUrl();
+  res.locals.user.username = req.user && req.user.username;
+  next();
 });
 
-/*app.get('/comments/detail/:id',function(req,res){
-    Comments.findById(req.params.id, function (err, commentDetail) {
-        if (err) {
-          console.log(err);
-        } else {
-            Posts.find({'postId':req.params.id}, function (err, comments) {
-                res.render('post-detail', { postDetail: postDetail, comments: comments, postId: req.params.id });
-            });
-        }
-    }); 
-});*/
+//global locals
+app.locals.projectName = app.config.projectName;
+app.locals.copyrightYear = new Date().getFullYear();
+app.locals.copyrightName = app.config.companyName;
+app.locals.cacheBreaker = 'br34k-01';
 
-app.get('/posts/detail/:id',function(req,res){
-    Posts.findById(req.params.id, function (err, postDetail) {
-        if (err) {
-          console.log(err);
-        } else {
-            Comments.find({'postId':req.params.id}, function (err, comments) {
-                res.render('post-detail', { postDetail: postDetail, comments: comments, postId: req.params.id });
-            });
-        }
-    }); 
-});
+//setup passport
+require('./passport')(app, passport);
 
+//setup routes
+require('./routes')(app, passport);
 
+//custom (friendly) error handler
+app.use(require('./views/http/index').http500);
 
-// DB connection
-var mongoose = require('mongoose');
-mongoose.Promise = global.Promise;
-mongoose.connect('mongodb://localhost/posts_db', { useMongoClient: true })
+//setup utilities
+app.utility = {};
+app.utility.sendmail = require('./util/sendmail');
+app.utility.slugify = require('./util/slugify');
+app.utility.workflow = require('./util/workflow');
 
-.then(() => console.log('connection succesful'))
-.catch((err) => console.error(err));
-// DB connection end
-io2.on('connection',function(psocket){
-    psocket.on('title',function(data2){
-        var postData = new Posts(data2);
-        postData.save();
-        psocket.broadcast.emit('title',data2);  
-    });
-
-});
-
-io.on('connection',function(socket){
-    socket.on('comment',function(data){
-        var commentData = new Comments(data);
-        commentData.save();
-        socket.broadcast.emit('comment',data);  
-    });
-
-});
-
-
-http.listen(port,function(){
-console.log("Server running at port "+ port);
+//listen up
+app.server.listen(app.config.port, function(){
+  //and... we're live
+  console.log('Server is running on port ' + config.port);
 });
